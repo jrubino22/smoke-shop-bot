@@ -205,7 +205,7 @@ async function main() {
   // 11236, 11237, 11238, 11239, 11241, 11242, 11243, 11249, 11252, 11256,
 
   const zipCodeArray = [
-    80002, 80003, 80004, 80005, 80007, 80010, 80011, 80012, 80013, 80014, 80015,
+    80015, 80003, 80004, 80005, 80007, 80010, 80011, 80012, 80013, 80014, 80015,
     80016, 80017, 80018, 80019, 80020, 80021, 80022, 80023, 80026, 80027, 80030,
     80031, 80033, 80045, 80101, 80102, 80103, 80104, 80105, 80106, 80107, 80108,
     80109, 80110, 80111, 80112, 80113, 80116, 80117, 80118, 80120, 80121, 80122,
@@ -253,14 +253,15 @@ async function main() {
   // { headless: false }
 
   async function iteration1(zipCode) {
+    console.log('index', zipCode);
     if (zipCode < zipCodeArray.length) {
-      const browser = await playwright[browserType].launch({ headless: false });
+      const browser = await playwright[browserType].launch();
       const context = await browser.newContext();
       const page = await context.newPage();
       await page.goto('http://google.com');
       await page.waitForLoadState('load');
 
-      const searchTerm = `smoke vape zip code ${zipCodeArray[zipCode]}`;
+      const searchTerm = `smoke vape shop in zip code ${zipCodeArray[zipCode]}`;
       const input = page.locator('input[name="q"]');
 
       await input.fill(searchTerm);
@@ -297,7 +298,7 @@ async function main() {
 
       //////////////////  Shop Iterator
       // for (let i = 0; i < count; i++) {
-      try{
+
       async function iterator2(i) {
         if (i < count) {
           await storeContainer.nth(i).locator('a').nth(0).click();
@@ -307,80 +308,75 @@ async function main() {
             .nth(i)
             .getAttribute('aria-label');
 
-          // let p = 0
-          // const b = 15
-          //  while(p < b){
-          //  try {
-          //   storeTester === await main.nth(1).getAttribute('aria-label') ?
-          //   console.log(storeTester) : finally
-          //  } catch{
-          //   await page.waitForTimeout(200)
-          //   console.log("wait")
-          //   p++
-          //  }
-          // }
-          async function checkStores() {
-            if (
-              await (storeTester !==
-                (await main.nth(1).getAttribute('aria-label')))
-            ) {
-              await page.waitForTimeout(100);
-              return await checkStores();
-            } else {
-              const addressEl = page.locator('button[data-item-id="address"]');
-              const phoneNumEl = page.locator(
-                'button[data-tooltip="Copy phone number"]'
-              );
-              const websiteEl = page.locator('a[data-tooltip="Open website"]');
+          let tries = 0;
+          try {
+            async function checkStores() {
+              if (
+                await (storeTester !==
+                  (await main.nth(1).getAttribute('aria-label')))
+              ) {
+                tries++;
+                if (tries < 12) {
+                  console.log(tries);
+                  console.log(await main.nth(1).getAttribute('aria-label'));
+                  await page.waitForTimeout(150);
+                  return await checkStores();
+                } else {
+                  return await iterator2(i + 1);
+                }
+              } else {
+                const addressEl = page.locator(
+                  'button[data-item-id="address"]'
+                );
+                const phoneNumEl = page.locator(
+                  'button[data-tooltip="Copy phone number"]'
+                );
+                const websiteEl = page.locator(
+                  'a[data-tooltip="Open website"]'
+                );
 
-              if ((await main.count()) > 0) {
-                shopNameArray.push(
-                  `"${await main.nth(1).getAttribute('aria-label')}"`
-                );
-              } else {
-                shopNameArray.push(`"Smoke Shop"`);
+                if ((await main.count()) > 0) {
+                  shopNameArray.push(
+                    `"${await main.nth(1).getAttribute('aria-label')}"`
+                  );
+                } else {
+                  shopNameArray.push(`"Smoke Shop"`);
+                }
+                if ((await addressEl.count()) > 0) {
+                  addressArray.push(
+                    `"${await addressEl.nth(0).textContent()}"`
+                  );
+                } else {
+                  addressArray.push(`"Not Listed"`);
+                }
+                if ((await phoneNumEl.count()) > 0) {
+                  phoneNumArray.push(
+                    `"${await phoneNumEl.nth(0).textContent()}"`
+                  );
+                } else {
+                  phoneNumArray.push(`"Not Listed"`);
+                }
+                if ((await websiteEl.count()) > 0) {
+                  websiteArray.push(
+                    `"${await websiteEl.nth(0).getAttribute('href')}"`
+                  );
+                } else {
+                  websiteArray.push(`"Not Listed"`);
+                }
               }
-              if ((await addressEl.count()) > 0) {
-                addressArray.push(`"${await addressEl.nth(0).textContent()}"`);
-              } else {
-                addressArray.push(`"Not Listed"`);
-              }
-              if ((await phoneNumEl.count()) > 0) {
-                phoneNumArray.push(
-                  `"${await phoneNumEl.nth(0).textContent()}"`
-                );
-              } else {
-                phoneNumArray.push(`"Not Listed"`);
-              }
-              if ((await websiteEl.count()) > 0) {
-                websiteArray.push(
-                  `"${await websiteEl.nth(0).getAttribute('href')}"`
-                );
-              } else {
-                websiteArray.push(`"Not Listed"`);
-              }
+              await iterator2(i + 1);
             }
-            iterator2(i + 1);
+            await checkStores();
+          } catch {
+            return await iteration1(zipCode + 1);
           }
-          await checkStores();
         } else {
-          retryStrikes2 = 0
           await page.waitForTimeout(300);
           await browser.close();
-          iteration1(zipCode + 1, 0);
+          await iteration1(zipCode + 1);
         }
       }
-    } catch {
-        await browser.close();
-        retryStrikes2++;
-        if (retryStrikes2 > 3) {
-          retryStrikes2 = 0;
-          return await iteration1(zipCode + 1);
-        } else {
-          return await iteration1(zipCode);
-        }
-      }
-      iterator2(0);
+      await iterator2(0);
     } else {
       console.log('shop names', shopNameArray);
       console.log('phone Numbers', phoneNumArray);
